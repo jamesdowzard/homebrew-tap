@@ -1,11 +1,8 @@
 cask "rodin" do
-  arch arm: "arm64", intel: "x86_64"
-
   version "0.1.0"
-  sha256 arm:   "PLACEHOLDER_ARM64_SHA256",
-         intel: "PLACEHOLDER_X86_64_SHA256"
+  sha256 "PLACEHOLDER_SHA256"
 
-  url "https://github.com/jamesdowzard/rodin/releases/download/v#{version}/Rodin-#{version}-#{arch}.zip"
+  url "https://github.com/jamesdowzard/rodin/releases/download/v#{version}/Rodin-#{version}-arm64.zip"
   name "Rodin"
   desc "Local voice dictation powered by Whisper - open source alternative to Wispr Flow"
   homepage "https://github.com/jamesdowzard/rodin"
@@ -16,6 +13,7 @@ cask "rodin" do
   end
 
   depends_on macos: ">= :monterey"
+  depends_on arch: :arm64
 
   app "Rodin.app"
 

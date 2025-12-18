@@ -32,7 +32,7 @@ jobs:
             echo "version=$DISPATCH_VERSION" >> $GITHUB_OUTPUT
           fi
 
-      - name: Download release assets and get SHA256
+      - name: Download release asset and get SHA256
         id: sha
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -41,31 +41,20 @@ jobs:
           curl -L -o "Rodin-arm64.zip" \
             "https://github.com/jamesdowzard/rodin/releases/download/v${VERSION}/Rodin-${VERSION}-arm64.zip"
 
-          # Download x86_64 zip
-          curl -L -o "Rodin-x86_64.zip" \
-            "https://github.com/jamesdowzard/rodin/releases/download/v${VERSION}/Rodin-${VERSION}-x86_64.zip"
-
           # Calculate SHA256
-          ARM64_SHA=$(shasum -a 256 Rodin-arm64.zip | cut -d' ' -f1)
-          X86_64_SHA=$(shasum -a 256 Rodin-x86_64.zip | cut -d' ' -f1)
-
-          echo "arm64_sha=$ARM64_SHA" >> $GITHUB_OUTPUT
-          echo "x86_64_sha=$X86_64_SHA" >> $GITHUB_OUTPUT
+          SHA=$(shasum -a 256 Rodin-arm64.zip | cut -d' ' -f1)
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
 
       - name: Update cask formula
         env:
           VERSION: ${{ steps.version.outputs.version }}
-          ARM64_SHA: ${{ steps.sha.outputs.arm64_sha }}
-          X86_64_SHA: ${{ steps.sha.outputs.x86_64_sha }}
+          SHA: ${{ steps.sha.outputs.sha }}
         run: |
           # Update version
           sed -i "s/version \".*\"/version \"${VERSION}\"/" Casks/rodin.rb
 
-          # Update SHA256 for arm64
-          sed -i "s/arm:   \".*\"/arm:   \"${ARM64_SHA}\"/" Casks/rodin.rb
-
-          # Update SHA256 for intel
-          sed -i "s/intel: \".*\"/intel: \"${X86_64_SHA}\"/" Casks/rodin.rb
+          # Update SHA256
+          sed -i "s/sha256 \".*\"/sha256 \"${SHA}\"/" Casks/rodin.rb
 
       - name: Commit and push
         env:
