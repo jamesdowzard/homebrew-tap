@@ -1,0 +1,78 @@
+name: Update Rodin Cask
+
+on:
+  repository_dispatch:
+    types: [rodin-release]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to update to (e.g., 0.1.0)'
+        required: true
+
+jobs:
+  update-cask:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          DISPATCH_VERSION: ${{ github.event.client_payload.version }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "version=$INPUT_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "version=$DISPATCH_VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download release assets and get SHA256
+        id: sha
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Download ARM64 zip
+          curl -L -o "Rodin-arm64.zip" \
+            "https://github.com/jamesdowzard/rodin/releases/download/v${VERSION}/Rodin-${VERSION}-arm64.zip"
+
+          # Download x86_64 zip
+          curl -L -o "Rodin-x86_64.zip" \
+            "https://github.com/jamesdowzard/rodin/releases/download/v${VERSION}/Rodin-${VERSION}-x86_64.zip"
+
+          # Calculate SHA256
+          ARM64_SHA=$(shasum -a 256 Rodin-arm64.zip | cut -d' ' -f1)
+          X86_64_SHA=$(shasum -a 256 Rodin-x86_64.zip | cut -d' ' -f1)
+
+          echo "arm64_sha=$ARM64_SHA" >> $GITHUB_OUTPUT
+          echo "x86_64_sha=$X86_64_SHA" >> $GITHUB_OUTPUT
+
+      - name: Update cask formula
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ARM64_SHA: ${{ steps.sha.outputs.arm64_sha }}
+          X86_64_SHA: ${{ steps.sha.outputs.x86_64_sha }}
+        run: |
+          # Update version
+          sed -i "s/version \".*\"/version \"${VERSION}\"/" Casks/rodin.rb
+
+          # Update SHA256 for arm64
+          sed -i "s/arm:   \".*\"/arm:   \"${ARM64_SHA}\"/" Casks/rodin.rb
+
+          # Update SHA256 for intel
+          sed -i "s/intel: \".*\"/intel: \"${X86_64_SHA}\"/" Casks/rodin.rb
+
+      - name: Commit and push
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/rodin.rb
+          git commit -m "Update rodin to v${VERSION}"
+          git push
